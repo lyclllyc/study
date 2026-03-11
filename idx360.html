@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>学习记录统计</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 全局样式 - 基础 + 自适应 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            width: 100%;
+            min-width: 320px; /* 最小宽度适配手机 */
+            margin: 0 auto;
+            padding: 10px; /* 移动端减少内边距 */
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px 15px; /* 移动端紧凑内边距 */
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 20px;
+            font-weight: 500;
+            font-size: 1.5rem; /* 自适应字号 */
+        }
+        /* 输入区域总布局 - 基础 + 自适应 */
+        .input-section {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+            width: 100%;
+        }
+        /* 左侧输入框组 - PC端横向，移动端纵向 */
+        .input-left {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            align-items: flex-start;
+            width: 100%;
+        }
+        .input-group {
+            flex: 1;
+            min-width: 150px; /* PC端最小宽度 */
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.2s;
+            height: 44px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #BDE0FE;
+            box-shadow: 0 0 0 2px rgba(189, 224, 254, 0.2);
+        }
+        /* 时长显示 */
+        .duration-display {
+            margin-top: 6px;
+            padding: 6px 8px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            color: #495057;
+            font-size: 13px;
+            white-space: nowrap;
+            min-height: 28px;
+        }
+        /* 右侧按钮组 */
+        .input-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap; /* 移动端按钮自动换行 */
+        }
+        .btn {
+            padding: 0 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+            height: 44px;
+            display: flex;
+            align-items: center;
+        }
+        .btn-primary {
+            background-color: #BDE0FE;
+            color: #212529;
+        }
+        .btn-primary:hover {
+            background-color: #a5c8ee;
+        }
+        .btn-secondary {
+            background-color: #FFC2D1;
+            color: #212529;
+        }
+        .btn-secondary:hover {
+            background-color: #faaebb;
+        }
+        .btn-danger {
+            background-color: #E5D8FF;
+            color: #212529;
+        }
+        .btn-danger:hover {
+            background-color: #d3bfff;
+        }
+        /* 图表区域 - 自适应高度 */
+        .chart-section {
+            margin: 20px 0;
+            height: 500px; /* PC端高度 */
+            width: 100%;
+        }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        /* 详情列表区域 */
+        .detail-section {
+            margin-top: 20px;
+            display: none;
+            width: 100%;
+            overflow-x: auto; /* 表格横向滚动适配手机 */
+        }
+        .detail-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        table {
+            width: 100%;
+            min-width: 320px; /* 表格最小宽度 */
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px 8px; /* 移动端紧凑内边距 */
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        /* 提示信息 - 适配手机位置 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%); /* 居中显示 */
+            padding: 10px 20px;
+            border-radius: 8px;
+            background-color: #98FB98;
+            color: #212529;
+            display: none;
+            z-index: 999;
+            max-width: 90%; /* 不超出屏幕 */
+            text-align: center;
+        }
+
+        /* ========== 移动端适配（768px以下） ========== */
+        @media (max-width: 768px) {
+            /* 输入区域纵向排列 */
+            .input-section {
+                flex-direction: column;
+                align-items: stretch; /* 占满宽度 */
+                gap: 15px;
+            }
+            .input-left {
+                flex-direction: column; /* 输入框组纵向排列 */
+                gap: 15px;
+                align-items: stretch;
+            }
+            .input-group {
+                min-width: 100%; /* 占满屏幕宽度 */
+            }
+            .input-right {
+                justify-content: space-between; /* 按钮均匀分布 */
+                gap: 10px;
+            }
+            .btn {
+                flex: 1; /* 按钮等分宽度 */
+                min-width: calc(33.33% - 10px); /* 至少3个一排 */
+                justify-content: center; /* 文字居中 */
+                padding: 0 10px;
+            }
+            /* 图表高度适配手机 */
+            .chart-section {
+                height: 280px; /* 手机端图表高度 */
+            }
+            /* 字号适配 */
+            h1 {
+                font-size: 1.2rem;
+            }
+            .detail-title {
+                font-size: 16px;
+            }
+            th, td {
+                font-size: 13px;
+            }
+        }
+
+        /* 小屏手机适配（480px以下） */
+        @media (max-width: 480px) {
+            .input-right {
+                flex-direction: column; /* 按钮纵向排列 */
+            }
+            .btn {
+                min-width: 100%; /* 按钮占满宽度 */
+                margin-bottom: 8px;
+            }
+            .btn:last-child {
+                margin-bottom: 0;
+            }
+            .chart-section {
+                height: 250px; /* 小屏手机图表高度 */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>学习记录统计</h1>
+        
+        <!-- 输入区域 -->
+        <div class="input-section">
+            <!-- 左侧：输入框组 -->
+            <div class="input-left">
+                <div class="input-group">
+                    <label for="subject">学习科目</label>
+                    <input type="text" id="subject" placeholder="例如：Python、英语、数学">
+                </div>
+                <div class="input-group">
+                    <label for="startTime">开始时间</label>
+                    <input type="datetime-local" id="startTime">
+                </div>
+                <div class="input-group">
+                    <label for="endTime">结束时间</label>
+                    <input type="datetime-local" id="endTime" onchange="calculateDuration()">
+                    <div class="duration-display" id="durationDisplay">时长：--小时--分钟</div>
+                </div>
+            </div>
+            <!-- 右侧：按钮组 -->
+            <div class="input-right">
+                <button class="btn btn-primary" onclick="addRecord()">添加记录</button>
+                <button class="btn btn-secondary" onclick="exportData()">导出数据(TXT)</button>
+                <button class="btn btn-danger" onclick="clearAllData()">清空数据</button>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="chart-section">
+            <canvas id="studyChart"></canvas>
+        </div>
+
+        <!-- 详情列表区域 -->
+        <div class="detail-section" id="detailSection">
+            <h3 class="detail-title" id="detailTitle"></h3>
+            <table id="detailTable">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>开始时间</th>
+                        <th>结束时间</th>
+                        <th>学习时长（小时）</th>
+                    </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 提示弹窗 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 马卡龙配色方案
+        const macaronColors = [
+            '#FFC2D1', // 淡粉
+            '#BDE0FE', // 淡蓝
+            '#CCE5FF', // 浅天蓝
+            '#FFF3B0', // 淡黄
+            '#E5D8FF', // 淡紫
+            '#FFE5D9', // 淡橙
+            '#98FB98', // 淡绿
+            '#F0E68C', // 卡其
+            '#D8BFD8', // 淡紫罗蓝
+            '#ADD8E6'  // 浅蓝
+        ];
+
+        // 初始化图表
+        let myChart;
+
+        // 页面加载时初始化
+        window.onload = function() {
+            // 设置默认时间（当前时间和一小时后）
+            const now = new Date();
+            const oneHourLater = new Date(now.getTime() + 3600000);
+            
+            // 格式化datetime-local输入的默认值
+            document.getElementById('startTime').value = formatDateForInput(now);
+            document.getElementById('endTime').value = formatDateForInput(oneHourLater);
+            calculateDuration();
+            
+            // 渲染图表
+            renderChart();
+            
+            // 监听窗口大小变化，重新渲染图表
+            window.addEventListener('resize', function() {
+                renderChart();
+            });
+        };
+
+        // 格式化日期为datetime-local输入格式
+        function formatDateForInput(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // 计算学习时长
+        function calculateDuration() {
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            if (!startTime || !endTime) {
+                document.getElementById('durationDisplay').textContent = '时长：--小时--分钟';
+                return;
+            }
+            
+            // 转换为时间戳计算差值（毫秒）
+            const start = new Date(startTime).getTime();
+            const end = new Date(endTime).getTime();
+            
+            if (end <= start) {
+                document.getElementById('durationDisplay').textContent = '时长：结束时间需晚于开始时间';
+                return;
+            }
+            
+            // 计算总分钟数
+            const diffMinutes = Math.round((end - start) / 60000);
+            const hours = Math.floor(diffMinutes / 60);
+            const minutes = diffMinutes % 60;
+            
+            document.getElementById('durationDisplay').textContent = `时长：${hours}小时${minutes}分钟`;
+            return { hours: hours + minutes/60, hoursText: hours, minutesText: minutes };
+        }
+
+        // 添加学习记录
+        function addRecord() {
+            const subject = document.getElementById('subject').value.trim();
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            // 验证输入
+            if (!subject) {
+                showToast('请输入学习科目！');
+                return;
+            }
+            if (!startTime || !endTime) {
+                showToast('请选择开始和结束时间！');
+                return;
+            }
+            
+            // 计算时长
+            const durationResult = calculateDuration();
+            if (!durationResult || durationResult.hours <= 0) {
+                showToast('请选择有效的时间范围！');
+                return;
+            }
+            
+            // 格式化显示日期
+            const startDate = new Date(startTime);
+            const displayDate = startDate.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).replace(/\//g, '-');
+            
+            // 格式化时间显示
+            const formatTime = (dateStr) => {
+                const date = new Date(dateStr);
+                return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            };
+            
+            // 读取本地存储的记录
+            let records = JSON.parse(localStorage.getItem('studyRecords')) || [];
+            
+            // 添加新记录
+            records.push({
+                subject: subject,
+                startTime: startTime,
+                endTime: endTime,
+                duration: durationResult.hours,
+                durationText: `${durationResult.hoursText}小时${durationResult.minutesText}分钟`,
+                date: displayDate,
+                startTimeText: formatTime(startTime),
+                endTimeText: formatTime(endTime)
+            });
+
+            // 保存到本地存储
+            localStorage.setItem('studyRecords', JSON.stringify(records));
+            
+            // 清空输入框
+            document.getElementById('subject').value = '';
+            
+            // 重新渲染图表
+            renderChart();
+            
+            // 显示提示
+            showToast('记录添加成功！');
+        }
+
+        // 渲染饼状图（自适应）
+        function renderChart() {
+            // 读取本地记录
+            const records = JSON.parse(localStorage.getItem('studyRecords')) || [];
+            
+            // 计算各科目总时长
+            const subjectTotal = {};
+            records.forEach(record => {
+                if (subjectTotal[record.subject]) {
+                    subjectTotal[record.subject] += record.duration;
+                } else {
+                    subjectTotal[record.subject] = record.duration;
+                }
+            });
+
+            // 准备图表数据
+            let subjects, durations, labels, colors;
+            
+            // 无数据时显示占位提示
+            if (Object.keys(subjectTotal).length === 0) {
+                subjects = ['暂无学习记录'];
+                durations = [1];
+                labels = ['暂无学习记录（点击添加）'];
+                colors = ['#f1f3f5'];
+            } else {
+                subjects = Object.keys(subjectTotal);
+                durations = Object.values(subjectTotal);
+                const totalDuration = durations.reduce((a, b) => a + b, 0);
+                
+                // 计算占比并格式化标签
+                labels = subjects.map((subject, index) => {
+                    const percentage = ((durations[index] / totalDuration) * 100).toFixed(1);
+                    return `${subject} (${durations[index].toFixed(1)}小时 / ${percentage}%)`;
+                });
+
+                // 分配马卡龙颜色
+                colors = subjects.map((_, index) => macaronColors[index % macaronColors.length]);
+            }
+
+            // 获取画布上下文
+            const ctx = document.getElementById('studyChart').getContext('2d');
+            
+            // 如果图表已存在，先销毁
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            // 创建饼状图（自适应配置）
+            myChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '学习时长',
+                        data: durations,
+                        backgroundColor: colors,
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: window.innerWidth < 768 ? 'bottom' : 'right', // 移动端图例在底部
+                            labels: {
+                                font: {
+                                    size: window.innerWidth < 768 ? 11 : 12, // 移动端小字
+                                },
+                                padding: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.label.includes('暂无学习记录')) {
+                                        return '请添加学习记录开始统计';
+                                    }
+                                    const value = context.raw;
+                                    const total = durations.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `总时长：${value.toFixed(1)}小时 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: function(e, elements) {
+                        if (elements.length > 0 && !labels[0].includes('暂无学习记录')) {
+                            const index = elements[0].index;
+                            const subject = subjects[index];
+                            showDetail(subject);
+                        }
+                    }
+                }
+            });
+        }
+
+        // 显示科目详情
+        function showDetail(subject) {
+            const records = JSON.parse(localStorage.getItem('studyRecords')) || [];
+            const subjectRecords = records.filter(record => record.subject === subject);
+            
+            // 更新详情标题
+            document.getElementById('detailTitle').innerText = `${subject} - 学习记录详情`;
+            
+            // 清空并填充详情表格
+            const detailBody = document.getElementById('detailBody');
+            detailBody.innerHTML = '';
+            
+            subjectRecords.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${record.date}</td>
+                    <td>${record.startTimeText}</td>
+                    <td>${record.endTimeText}</td>
+                    <td>${record.duration.toFixed(1)}</td>
+                `;
+                detailBody.appendChild(tr);
+            });
+            
+            // 显示详情区域
+            document.getElementById('detailSection').style.display = 'block';
+        }
+
+        // 导出数据为TXT
+        function exportData() {
+            const records = JSON.parse(localStorage.getItem('studyRecords')) || [];
+            
+            if (records.length === 0) {
+                showToast('暂无数据可导出！');
+                return;
+            }
+            
+            // 构建TXT内容
+            let txtContent = '学习记录统计\n';
+            txtContent += '=============================\n';
+            txtContent += `导出时间：${new Date().toLocaleString('zh-CN')}\n\n`;
+            
+            // 按科目分组导出
+            const subjectGroups = {};
+            records.forEach(record => {
+                if (!subjectGroups[record.subject]) {
+                    subjectGroups[record.subject] = [];
+                }
+                subjectGroups[record.subject].push(record);
+            });
+            
+            Object.keys(subjectGroups).forEach(subject => {
+                const group = subjectGroups[subject];
+                const totalDuration = group.reduce((sum, item) => sum + item.duration, 0);
+                
+                txtContent += `【${subject}】 总时长：${totalDuration.toFixed(1)}小时\n`;
+                txtContent += '日期         开始时间  结束时间  时长(小时)\n';
+                txtContent += '----------------------------------------\n';
+                
+                group.forEach(record => {
+                    txtContent += `${record.date}  ${record.startTimeText}  ${record.endTimeText}  ${record.duration.toFixed(1)}\n`;
+                });
+                txtContent += '\n';
+            });
+            
+            // 创建下载链接
+            const dataBlob = new Blob([txtContent], { type: 'text/plain; charset=utf-8' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(dataBlob);
+            downloadLink.download = `学习记录_${new Date().toLocaleDateString().replace(/\//g, '-')}.txt`;
+            downloadLink.click();
+            
+            // 释放URL
+            URL.revokeObjectURL(downloadLink.href);
+            
+            showToast('数据导出成功！');
+        }
+
+        // 清空所有数据
+        function clearAllData() {
+            if (confirm('确定要清空所有学习记录吗？此操作不可恢复！')) {
+                localStorage.removeItem('studyRecords');
+                renderChart();
+                document.getElementById('detailSection').style.display = 'none';
+                showToast('所有数据已清空！');
+            }
+        }
+
+        // 显示提示信息
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
